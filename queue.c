@@ -174,11 +174,52 @@ void q_reverse(queue_t *q)
  * No effect if q is NULL or empty. In addition, if q has only one
  * element, do nothing.
  */
-int cmp(const void *a, const void *b)
+
+list_ele_t *merge(list_ele_t *l, list_ele_t *r)
 {
-    const list_ele_t *aa = *(list_ele_t **) a;
-    const list_ele_t *bb = *(list_ele_t **) b;
-    return strcmp(aa->value, bb->value);
+    list_ele_t *h;
+    if (strcmp(l->value, r->value) < 0) {
+        h = l;
+        l = l->next;
+    } else {
+        h = r;
+        r = r->next;
+    }
+    list_ele_t *c = h;
+    while (l && r) {
+        if (strcmp(l->value, r->value) < 0) {
+            c->next = l;
+            l = l->next;
+        } else {
+            c->next = r;
+            r = r->next;
+        }
+        c = c->next;
+    }
+    c->next = l ? l : r;
+    return h;
+}
+
+int comp(const void *a, const void *b)
+{
+    return strcmp((*(list_ele_t **) a)->value, (*(list_ele_t **) b)->value);
+}
+
+list_ele_t *quick_sort_sub(list_ele_t **l)
+{
+    list_ele_t *arr[512];          // create array of elements
+    list_ele_t **end = &arr[512];  // set maximum
+    list_ele_t **begin;
+    // put list of elements into array, also find last element
+    for (begin = arr; (begin != end) && *l; *l = (*l)->next, ++begin)
+        *begin = *l;
+    end = begin;
+    qsort(arr, end - arr, sizeof(list_ele_t *), comp);  // sort
+    for (begin = arr; (begin != end - 1);
+         ++begin)  // put array of elements back to list
+        (*begin)->next = *(begin + 1);
+    (*begin)->next = NULL;  // cut last
+    return *arr;
 }
 
 void q_sort(queue_t *q)
@@ -186,22 +227,13 @@ void q_sort(queue_t *q)
     const size_t s = q_size(q);
     if (!s)
         return;
-    list_ele_t *l[s];
-    {
-        list_ele_t *h = q->head;
-        for (int i = 0; i < s; ++i, h = h->next) {
-            l[i] = h;
-        }
+    list_ele_t *head = q->head;
+    list_ele_t *sorted = NULL;
+    while (head) {  // terminate when no element left
+        // quick sort sub-list and modify head to next element after sorted list
+        list_ele_t *newh = quick_sort_sub(&head);
+        // merge two list if exist
+        sorted = sorted ? merge(sorted, newh) : newh;
     }
-
-    qsort(l, s, sizeof(list_ele_t *), cmp);
-
-    q->head = l[0];
-    for (int i = 0; i < (s - 1); ++i) {
-        l[i]->next = l[i + 1];
-    }
-    q->tail = l[s - 1];
-    q->tail->next = NULL;
-    /* TODO: You need to write the code for this function */
-    /* TODO: Remove the above comment when you are about to implement. */
+    q->head = sorted;
 }
